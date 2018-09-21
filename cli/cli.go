@@ -23,7 +23,7 @@ type Options struct {
 	NoWidth        bool   `short:"W" long:"noWidth" description:"NOT use char width"`
 	EaaHalfwidth   bool   `short:"E" long:"eaaHalfWidth" env:"FWV_EAA_HALF_WIDTH" description:"treat East Asian Ambiguous as half width"`
 	Color          func() `long:"color" description:"colorize output"`
-	NoColor        func() `long:"noColor" env:"NO_COLOR" description:"NOT colorize output"`
+	NoColor        func() `long:"noColor" description:"NOT colorize output"`
 	OutputFilePath string `short:"o" long:"output" description:"output file path"`
 	Whitespaces    string `short:"s" long:"whitespaces" description:"characters treated as whitespace"`
 	Delimiter      string `short:"d" long:"delimiter" description:"delimiter used for FWV output"`
