@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
 	"github.com/mattn/go-isatty"
+	"github.com/sirupsen/logrus"
 	"github.com/taskie/fwv"
-	"io"
+	"github.com/taskie/osplus"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
 var (
+	log      = logrus.New()
 	version  = fwv.Version
 	revision = ""
 )
@@ -28,31 +29,6 @@ type Options struct {
 	Delimiter      string `short:"d" long:"delimiter" description:"delimiter used for FWV output"`
 	Verbose        bool   `short:"v" long:"verbose" description:"show verbose output"`
 	Version        bool   `short:"V" long:"version" description:"show version"`
-}
-
-func move(dst string, src string) error {
-	err := os.Rename(src, dst)
-	if err != nil {
-		ifs, err := os.Open(src)
-		if err != nil {
-			return err
-		}
-		ofs, err := os.Create(dst)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(ofs, ifs)
-		if err != nil {
-			return err
-		}
-		ofs.Close()
-		ifs.Close()
-		err = os.Remove(src)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func Main() {
@@ -106,7 +82,9 @@ func Main() {
 		app.Whitespaces = opts.Whitespaces
 	}
 	app.Delimiter = opts.Delimiter
-	app.Colored = colored
+	if opts.OutputFilePath == "" {
+		app.Colored = colored
+	}
 
 	var r *bufio.Reader
 	if len(args) == 1 || args[1] == "-" {
@@ -120,28 +98,32 @@ func Main() {
 		r = bufio.NewReader(file)
 	}
 
-	var w *bufio.Writer
 	if opts.OutputFilePath == "" || opts.OutputFilePath == "-" {
-		w = bufio.NewWriter(os.Stdout)
-	} else {
-		file, err := ioutil.TempFile("", "fwv")
-		tmpName := file.Name()
+		w := bufio.NewWriter(os.Stdout)
+		defer w.Flush()
+
+		err := app.Run(r, w)
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer func() {
-			file.Close()
-			err := move(opts.OutputFilePath, tmpName)
-			if err != nil {
-				log.Fatal(err)
-			}
+	} else {
+		tmpFile, err := ioutil.TempFile("", "fwv-")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.Remove(tmpFile.Name())
+		err = func() error {
+			defer tmpFile.Close()
+			w := bufio.NewWriter(tmpFile)
+			defer w.Flush()
+			return app.Run(r, w)
 		}()
-		w = bufio.NewWriter(file)
-	}
-	defer w.Flush()
-
-	err = app.Run(r, w)
-	if err != nil {
-		log.Fatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = osplus.Copy(tmpFile.Name(), opts.OutputFilePath)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }

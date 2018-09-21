@@ -38,6 +38,14 @@
   version = "0.0.4"
 
 [[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "1.0.6"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/taskie/osplus"
+
+[[constraint]]
   name = "golang.org/x/text"
   version = "0.3.0"
 

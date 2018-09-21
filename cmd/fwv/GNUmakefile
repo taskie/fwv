@@ -5,7 +5,3 @@ build:
 
 install:
 	go install -v -ldflags "-s -w -X main.revision=$(shell git rev-parse --short HEAD)"
-
-dep-ensure:
-	dep ensure
-	dep status
