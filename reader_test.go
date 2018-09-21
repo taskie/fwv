@@ -67,6 +67,15 @@ func TestReaderUseWidth03(t *testing.T) {
 	assertReader(t, reader, records03)
 }
 
+func TestReaderUseWidthDelimited03(t *testing.T) {
+	r := bufio.NewReader(strings.NewReader(fwvUseWidthDelimited03))
+	reader := NewReaderWithWidthCalculator(r, &TextWidthCalculator{
+		EastAsianAmbiguousWidth: 2,
+	})
+	reader.SetWhitespaces(" |")
+	assertReader(t, reader, records03)
+}
+
 func TestReaderUseWidthEaaHalf01(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader(fwvUseWidthEaaHalf01))
 	reader := NewReaderWithWidthCalculator(r, &TextWidthCalculator{

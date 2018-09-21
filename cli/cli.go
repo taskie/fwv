@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/jessevdk/go-flags"
+	"github.com/mattn/go-isatty"
 	"github.com/taskie/fwv"
 	"io"
 	"io/ioutil"
@@ -17,11 +18,14 @@ var (
 )
 
 type Options struct {
-	ReverseMode  bool `short:"r" long:"reverse" description:"reverse mode"`
-	NoWidth      bool `short:"W" long:"noWidth" description:"NOT use char width"`
-	EaaHalfwidth bool `short:"E" long:"eaaHalfWidth" env:"FWV_EAA_HALF_WIDTH" description:"treat East Asian Ambiguous as half width"`
-	// NoColor        bool   `long:"no-color" env:"NO_COLOR" description:"NOT colorize output"`
+	ReverseMode    bool   `short:"r" long:"reverse" description:"reverse mode"`
+	NoWidth        bool   `short:"W" long:"noWidth" description:"NOT use char width"`
+	EaaHalfwidth   bool   `short:"E" long:"eaaHalfWidth" env:"FWV_EAA_HALF_WIDTH" description:"treat East Asian Ambiguous as half width"`
+	Color          func() `long:"color" description:"colorize output"`
+	NoColor        func() `long:"noColor" env:"NO_COLOR" description:"NOT colorize output"`
 	OutputFilePath string `short:"o" long:"output" description:"output file path"`
+	Whitespaces    string `short:"s" long:"whitespaces" description:"characters treated as whitespace"`
+	Delimiter      string `short:"d" long:"delimiter" description:"delimiter used for FWV output"`
 	Verbose        bool   `short:"v" long:"verbose" description:"show verbose output"`
 	Version        bool   `short:"V" long:"version" description:"show version"`
 }
@@ -53,6 +57,16 @@ func move(dst string, src string) error {
 
 func Main() {
 	var opts Options
+
+	outFd := os.Stdout.Fd()
+	colored := isatty.IsTerminal(outFd) || isatty.IsCygwinTerminal(outFd)
+	opts.Color = func() {
+		colored = true
+	}
+	opts.NoColor = func() {
+		colored = false
+	}
+
 	args, err := flags.ParseArgs(&opts, os.Args)
 	if opts.Version {
 		if opts.Verbose {
@@ -88,6 +102,11 @@ func Main() {
 	app := fwv.NewApplication(mode)
 	app.UseWidth = !opts.NoWidth
 	app.EastAsianAmbiguousWidth = eastAsianAmbiguousWidth
+	if opts.Whitespaces != "" {
+		app.Whitespaces = opts.Whitespaces
+	}
+	app.Delimiter = opts.Delimiter
+	app.Colored = colored
 
 	var r *bufio.Reader
 	if len(args) == 1 || args[1] == "-" {

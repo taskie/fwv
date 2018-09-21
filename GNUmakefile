@@ -1,4 +1,4 @@
-.PHONY: build install test coverage dep-ensure dep-graph pre-commit
+.PHONY: build install test fmt coverage dep-ensure dep-graph pre-commit
 
 build:
 	go build -v -ldflags "-s -w -X fwv.Revision=$(shell git rev-parse --short HEAD)"
@@ -10,6 +10,9 @@ install:
 
 test:
 	go test
+
+fmt:
+	find . -name '*.go' | xargs gofmt -w
 
 coverage:
 	mkdir -p test/coverage
@@ -23,7 +26,9 @@ dep-graph:
 	mkdir -p images
 	dep status -dot | dot -Tpng -o images/dependency.png
 
+
 pre-commit:
+	$(MAKE) fmt
 	$(MAKE) build
 	$(MAKE) coverage
 	rm -rf vendor/

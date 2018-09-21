@@ -3,6 +3,7 @@ package fwv
 import (
 	"bufio"
 	"errors"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -10,6 +11,12 @@ import (
 func assertEqual(t *testing.T, actual interface{}, expected interface{}) {
 	if actual != expected {
 		t.Errorf("assertEqual: actual: %v, expected: %v", actual, expected)
+	}
+}
+
+func assertNotEqual(t *testing.T, actual interface{}, notExpected interface{}) {
+	if actual == notExpected {
+		t.Errorf("assertNotEqual: must not be equal to %v", notExpected)
 	}
 }
 
@@ -62,6 +69,31 @@ func TestWriterUseWidthEaaHalf01(t *testing.T) {
 		EastAsianAmbiguousWidth: 1,
 	})
 	assertWriter(t, writer, records01, fwvUseWidthEaaHalf01)
+}
+
+func TestWriterUseWidthDelimited03(t *testing.T) {
+	writer := NewWriterWithWidthCalculator(nil, &TextWidthCalculator{
+		EastAsianAmbiguousWidth: 2,
+	})
+	writer.Delimiter = "|"
+	assertWriter(t, writer, records03, fwvUseWidthDelimited03)
+}
+
+func TestWriterUseWidthColored03(t *testing.T) {
+	writer := NewWriterWithWidthCalculator(nil, &TextWidthCalculator{
+		EastAsianAmbiguousWidth: 2,
+	})
+	writer.Colored = true
+	actual := ""
+	writer.ForEach(records03, func(line string) error {
+		actual += line + "\n"
+		return nil
+	})
+	assertNotEqual(t, actual, fwvUseWidth03)
+	// remove color
+	re := regexp.MustCompile("\x1b\\[\\d+m")
+	noColoredActual := string(re.ReplaceAll([]byte(actual), []byte{}))
+	assertEqualForEachLine(t, noColoredActual, fwvUseWidth03)
 }
 
 func TestWriterForEachError(t *testing.T) {

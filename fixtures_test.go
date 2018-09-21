@@ -43,6 +43,10 @@ var fwvUseWidth03 = `あ   いう えおか き
 アイ ウ   エ     オカキ
 `
 
+var fwvUseWidthDelimited03 = `あ  |いう|えおか|き
+アイ|ウ  |エ    |オカキ
+`
+
 var csv01 = `abc,あいう,αβγ,abc,あいう,αβγ,abc,あいう,αβγ
 abc,あいう,αβγ,あいう,αβγ,abc,αβγ,abc,あいう
 abc,あいう,αβγ,abc,あいう,αβγ,あいう,αβγ,abc

@@ -26,8 +26,16 @@
 
 
 [[constraint]]
+  name = "github.com/fatih/color"
+  version = "1.7.0"
+
+[[constraint]]
   name = "github.com/jessevdk/go-flags"
   version = "1.4.0"
+
+[[constraint]]
+  name = "github.com/mattn/go-isatty"
+  version = "0.0.4"
 
 [[constraint]]
   name = "golang.org/x/text"

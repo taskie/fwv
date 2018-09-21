@@ -18,6 +18,8 @@ type Application struct {
 	UseCRLF                 bool
 	Comma                   rune
 	CSVComment              rune
+	Delimiter               string
+	Colored                 bool
 }
 
 func NewApplication(mode string) Application {
@@ -70,6 +72,8 @@ func (app *Application) ConvertCSVToFWV(r io.Reader, w io.Writer) error {
 		writer = NewWriter(w)
 	}
 	writer.UseCRLF = app.UseCRLF
+	writer.Delimiter = app.Delimiter
+	writer.Colored = app.Colored
 	err = writer.WriteAll(records)
 	return err
 }
