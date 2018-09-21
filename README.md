@@ -68,6 +68,19 @@ Only the number of characters (runes) are considered.
 fwv -W
 ```
 
+### specify a delimiter
+
+```sh
+fwv -d '│'
+```
+
+#### foo.txt (output)
+
+```
+a   │bb│あいう│ccc
+漢字│d │eee   │f
+```
+
 ## dependency
 
 ![dependency](images/dependency.png)
