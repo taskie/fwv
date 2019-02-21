@@ -3,6 +3,7 @@ package fwv
 import (
 	"encoding/csv"
 	"io"
+	"strings"
 )
 
 var (
@@ -10,7 +11,9 @@ var (
 	Revision = ""
 )
 
-type Application struct {
+type Converter struct {
+	Reader                  io.Reader
+	Writer                  io.Writer
 	Mode                    string
 	UseWidth                bool
 	EastAsianAmbiguousWidth int
@@ -20,10 +23,13 @@ type Application struct {
 	CSVComment              rune
 	Delimiter               string
 	Colored                 bool
+	ColumnRanges            []IntRange
 }
 
-func NewApplication(mode string) Application {
-	return Application{
+func NewConverter(w io.Writer, r io.Reader, mode string) Converter {
+	return Converter{
+		Reader:                  r,
+		Writer:                  w,
 		Mode:                    mode,
 		UseWidth:                true,
 		EastAsianAmbiguousWidth: 2,
@@ -33,55 +39,89 @@ func NewApplication(mode string) Application {
 	}
 }
 
-func (app *Application) ConvertFWVToCSV(r io.Reader, w io.Writer) error {
-	csvw := csv.NewWriter(w)
-	csvw.UseCRLF = app.UseCRLF
-	csvw.Comma = app.Comma
+func (c *Converter) fwvReader() *Reader {
 	var reader Reader
-	if app.UseWidth {
-		reader = NewReaderWithWidthCalculator(r, &TextWidthCalculator{
-			EastAsianAmbiguousWidth: app.EastAsianAmbiguousWidth,
+	if c.UseWidth {
+		reader = NewReaderWithWidthCalculator(c.Reader, &TextWidthCalculator{
+			EastAsianAmbiguousWidth: c.EastAsianAmbiguousWidth,
 		})
 	} else {
-		reader = NewReader(r)
+		reader = NewReader(c.Reader)
 	}
-	reader.SetWhitespaces(app.Whitespaces)
+	reader.SetWhitespaces(c.Whitespaces)
+	reader.ColumnRanges = c.ColumnRanges
+	return &reader
+}
+
+func (c *Converter) fwvWriter() *Writer {
+	var writer Writer
+	if c.UseWidth {
+		writer = NewWriterWithWidthCalculator(c.Writer, &TextWidthCalculator{
+			EastAsianAmbiguousWidth: c.EastAsianAmbiguousWidth,
+		})
+	} else {
+		writer = NewWriter(c.Writer)
+	}
+	writer.UseCRLF = c.UseCRLF
+	writer.Delimiter = c.Delimiter
+	writer.Colored = c.Colored
+	return &writer
+}
+
+func (c *Converter) csvReader() *csv.Reader {
+	csvr := csv.NewReader(c.Reader)
+	csvr.Comment = c.CSVComment
+	csvr.Comma = c.Comma
+	return csvr
+}
+
+func (c *Converter) csvWriter() *csv.Writer {
+	csvw := csv.NewWriter(c.Writer)
+	csvw.UseCRLF = c.UseCRLF
+	csvw.Comma = c.Comma
+	return csvw
+}
+
+func (c *Converter) ConvertFWVToCSV() error {
+	reader := c.fwvReader()
 	records, err := reader.ReadAll()
 	if err != nil {
 		return err
 	}
+	csvw := c.csvWriter()
 	err = csvw.WriteAll(records)
 	return err
 }
 
-func (app *Application) ConvertCSVToFWV(r io.Reader, w io.Writer) error {
-	csvr := csv.NewReader(r)
-	csvr.Comment = app.CSVComment
-	csvr.Comma = app.Comma
+func (c *Converter) ConvertCSVToFWV() error {
+	csvr := c.csvReader()
 	records, err := csvr.ReadAll()
 	if err != nil {
 		return err
 	}
-
-	var writer Writer
-	if app.UseWidth {
-		writer = NewWriterWithWidthCalculator(w, &TextWidthCalculator{
-			EastAsianAmbiguousWidth: app.EastAsianAmbiguousWidth,
-		})
-	} else {
-		writer = NewWriter(w)
-	}
-	writer.UseCRLF = app.UseCRLF
-	writer.Delimiter = app.Delimiter
-	writer.Colored = app.Colored
+	writer := c.fwvWriter()
 	err = writer.WriteAll(records)
 	return err
 }
 
-func (app *Application) Run(r io.Reader, w io.Writer) error {
-	if app.Mode == "f2c" {
-		return app.ConvertFWVToCSV(r, w)
-	} else {
-		return app.ConvertCSVToFWV(r, w)
+func (c *Converter) ConvertFWVToFWV() error {
+	reader := c.fwvReader()
+	records, err := reader.ReadAll()
+	if err != nil {
+		return err
+	}
+	writer := c.fwvWriter()
+	err = writer.WriteAll(records)
+	return err
+}
+
+func (c *Converter) Convert() error {
+	switch strings.ToLower(c.Mode) {
+	case "f2c":
+		return c.ConvertFWVToCSV()
+	case "f2f", "shrink":
+		return c.ConvertFWVToFWV()
+	default:
+		return c.ConvertCSVToFWV()
 	}
 }

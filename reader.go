@@ -9,6 +9,7 @@ import (
 type Reader struct {
 	UseWidthCalculator bool
 	WidthCalculator    WidthCalculator
+	ColumnRanges       []IntRange
 	whitespaces        string
 	whitespaceWidthMap map[rune]int
 	underlyingReader   io.Reader
@@ -34,13 +35,13 @@ func NewReaderWithWidthCalculator(r io.Reader, wcalc WidthCalculator) Reader {
 	return reader
 }
 
-func (reader *Reader) SetWhitespaces(whitespaces string) {
+func (r *Reader) SetWhitespaces(whitespaces string) {
 	whitespaceWidthMap := make(map[rune]int)
 	for _, c := range whitespaces {
-		whitespaceWidthMap[c] = reader.WidthCalculator.CalcWidthOfRune(c)
+		whitespaceWidthMap[c] = r.WidthCalculator.CalcWidthOfRune(c)
 	}
-	reader.whitespaces = whitespaces
-	reader.whitespaceWidthMap = whitespaceWidthMap
+	r.whitespaces = whitespaces
+	r.whitespaceWidthMap = whitespaceWidthMap
 }
 
 type ColumnSpec struct {
@@ -48,7 +49,7 @@ type ColumnSpec struct {
 	whitespaceCountByColumn map[int]int
 }
 
-func (reader *Reader) makeColumnSpec(lines []string) ColumnSpec {
+func (r *Reader) makeColumnSpec(lines []string) ColumnSpec {
 	maxWidth := -1
 	whitespaceCountByColumn := make(map[int]int)
 	for _, line := range lines {
@@ -56,7 +57,7 @@ func (reader *Reader) makeColumnSpec(lines []string) ColumnSpec {
 		for _, c := range line {
 			var w int
 			var ok bool
-			if w, ok = reader.whitespaceWidthMap[c]; ok {
+			if w, ok = r.whitespaceWidthMap[c]; ok {
 				// c is whitespace
 				for i := 0; i < w; i++ {
 					if pos+i >= maxWidth {
@@ -67,7 +68,7 @@ func (reader *Reader) makeColumnSpec(lines []string) ColumnSpec {
 				}
 			} else {
 				// c is non-whitespace
-				w = reader.WidthCalculator.CalcWidthOfRune(c)
+				w = r.WidthCalculator.CalcWidthOfRune(c)
 				for i := 0; i < w; i++ {
 					delete(whitespaceCountByColumn, pos+i)
 				}
@@ -84,7 +85,7 @@ func (reader *Reader) makeColumnSpec(lines []string) ColumnSpec {
 	}
 }
 
-func (reader *Reader) makeColumnRanges(spec ColumnSpec) []IntRange {
+func (r *Reader) makeColumnRanges(spec ColumnSpec) []IntRange {
 	intRanges := make([]IntRange, 0)
 	begin := -1
 	inRange := false
@@ -111,7 +112,7 @@ func (reader *Reader) makeColumnRanges(spec ColumnSpec) []IntRange {
 	return intRanges
 }
 
-func (reader *Reader) extractCell(
+func (r *Reader) extractCell(
 	line string, columnRange IntRange, runeOffset int, widthOffset int,
 ) (cell string, read int, width int) {
 	runes := []rune(line)
@@ -130,20 +131,20 @@ func (reader *Reader) extractCell(
 		} else {
 			panic("unreachable code")
 		}
-		width += reader.WidthCalculator.CalcWidthOfRune(c)
+		width += r.WidthCalculator.CalcWidthOfRune(c)
 		read++
 	}
 	return
 }
 
-func (reader *Reader) loadLinesWithWidthCalculator(lines []string, columnRanges []IntRange, handler func(record []string) error) error {
+func (r *Reader) loadLinesWithWidthCalculator(lines []string, columnRanges []IntRange, handler func(record []string) error) error {
 	for _, line := range lines {
 		record := make([]string, 0)
 		runeOffset := 0
 		widthOffset := 0
 		for _, columnRange := range columnRanges {
-			cell, read, width := reader.extractCell(line, columnRange, runeOffset, widthOffset)
-			trimmedCell := strings.Trim(cell, reader.whitespaces)
+			cell, read, width := r.extractCell(line, columnRange, runeOffset, widthOffset)
+			trimmedCell := strings.Trim(cell, r.whitespaces)
 			record = append(record, trimmedCell)
 			runeOffset += read
 			widthOffset += width
@@ -156,7 +157,7 @@ func (reader *Reader) loadLinesWithWidthCalculator(lines []string, columnRanges 
 	return nil
 }
 
-func (reader *Reader) loadLinesWithoutWidthCalculator(lines []string, columnRanges []IntRange, handler func(record []string) error) error {
+func (r *Reader) loadLinesWithoutWidthCalculator(lines []string, columnRanges []IntRange, handler func(record []string) error) error {
 	for _, line := range lines {
 		runes := []rune(line)
 		l := len(runes)
@@ -170,7 +171,7 @@ func (reader *Reader) loadLinesWithoutWidthCalculator(lines []string, columnRang
 			if end > l {
 				end = l
 			}
-			record = append(record, strings.Trim(string(runes[begin:end]), reader.whitespaces))
+			record = append(record, strings.Trim(string(runes[begin:end]), r.whitespaces))
 		}
 		err := handler(record)
 		if err != nil {
@@ -180,32 +181,49 @@ func (reader *Reader) loadLinesWithoutWidthCalculator(lines []string, columnRang
 	return nil
 }
 
-func (reader *Reader) loadLines(lines []string, handler func(record []string) error) error {
-	spec := reader.makeColumnSpec(lines)
-	columnRanges := reader.makeColumnRanges(spec)
-	var err error
-	if reader.UseWidthCalculator {
-		err = reader.loadLinesWithWidthCalculator(lines, columnRanges, handler)
-	} else {
-		err = reader.loadLinesWithoutWidthCalculator(lines, columnRanges, handler)
-	}
-	return err
+type ReadInfo struct {
+	ColumnRanges []IntRange
 }
 
-func (reader *Reader) forEach(handler func(record []string) error) error {
+func (r *Reader) loadLines(lines []string, handler func(record []string) error) (*ReadInfo, error) {
+	spec := r.makeColumnSpec(lines)
+	columnRanges := r.ColumnRanges
+	if columnRanges == nil {
+		columnRanges = r.makeColumnRanges(spec)
+	}
+	var err error
+	if r.UseWidthCalculator {
+		err = r.loadLinesWithWidthCalculator(lines, columnRanges, handler)
+	} else {
+		err = r.loadLinesWithoutWidthCalculator(lines, columnRanges, handler)
+	}
+	return &ReadInfo{
+		ColumnRanges: columnRanges,
+	}, err
+}
+
+func (r *Reader) ForEach(handler func(record []string) error) (*ReadInfo, error) {
 	lines := make([]string, 0)
-	scanner := bufio.NewScanner(reader.underlyingReader)
+	scanner := bufio.NewScanner(r.underlyingReader)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
-	return reader.loadLines(lines, handler)
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return r.loadLines(lines, handler)
 }
 
-func (reader *Reader) ReadAll() ([][]string, error) {
+func (r *Reader) ReadAllInfo() ([][]string, *ReadInfo, error) {
 	records := make([][]string, 0)
-	err := reader.forEach(func(record []string) error {
+	info, err := r.ForEach(func(record []string) error {
 		records = append(records, record)
 		return nil
 	})
+	return records, info, err
+}
+
+func (r *Reader) ReadAll() ([][]string, error) {
+	records, _, err := r.ReadAllInfo()
 	return records, err
 }

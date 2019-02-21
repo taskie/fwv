@@ -1,15 +1,14 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
+	"os"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"
 	"github.com/taskie/fwv"
 	"github.com/taskie/osplus"
-	"io/ioutil"
-	"os"
 )
 
 var (
@@ -19,6 +18,7 @@ var (
 )
 
 type Options struct {
+	Mode           string
 	ReverseMode    bool   `short:"r" long:"reverse" description:"reverse mode"`
 	NoWidth        bool   `short:"W" long:"noWidth" description:"NOT use char width"`
 	EaaHalfwidth   bool   `short:"E" long:"eaaHalfWidth" env:"FWV_EAA_HALF_WIDTH" description:"treat East Asian Ambiguous as half width"`
@@ -70,60 +70,40 @@ func Main() {
 	if opts.ReverseMode {
 		mode = "f2c"
 	}
+	if opts.Mode != "" {
+		mode = opts.Mode
+	}
 	eastAsianAmbiguousWidth := 2
 	if opts.EaaHalfwidth {
 		eastAsianAmbiguousWidth = 1
 	}
 
-	app := fwv.NewApplication(mode)
-	app.UseWidth = !opts.NoWidth
-	app.EastAsianAmbiguousWidth = eastAsianAmbiguousWidth
+	opener := osplus.NewOpener()
+	w, commit, err := opener.CreateTempFileWithDestination(opts.OutputFilePath, "", "fwv-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer w.Close()
+	r, err := opener.Open(args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer r.Close()
+
+	conv := fwv.NewConverter(w, r, mode)
+	conv.UseWidth = !opts.NoWidth
+	conv.EastAsianAmbiguousWidth = eastAsianAmbiguousWidth
 	if opts.Whitespaces != "" {
-		app.Whitespaces = opts.Whitespaces
+		conv.Whitespaces = opts.Whitespaces
 	}
-	app.Delimiter = opts.Delimiter
+	conv.Delimiter = opts.Delimiter
 	if opts.OutputFilePath == "" {
-		app.Colored = colored
+		conv.Colored = colored
 	}
-
-	var r *bufio.Reader
-	if len(args) == 1 || args[1] == "-" {
-		r = bufio.NewReader(os.Stdin)
-	} else {
-		file, err := os.Open(args[1])
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer file.Close()
-		r = bufio.NewReader(file)
+	err = conv.Convert()
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	if opts.OutputFilePath == "" || opts.OutputFilePath == "-" {
-		w := bufio.NewWriter(os.Stdout)
-		defer w.Flush()
-
-		err := app.Run(r, w)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		tmpFile, err := ioutil.TempFile("", "fwv-")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer os.Remove(tmpFile.Name())
-		err = func() error {
-			defer tmpFile.Close()
-			w := bufio.NewWriter(tmpFile)
-			defer w.Flush()
-			return app.Run(r, w)
-		}()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = osplus.Copy(tmpFile.Name(), opts.OutputFilePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	commit(true)
+	return
 }

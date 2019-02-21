@@ -33,7 +33,7 @@ func TestSimpleWidthCalculator(t *testing.T) {
 	assertWidthOfString(t, wcalc, "あいう", 3)
 	assertWidthOfString(t, wcalc, "αβγ", 3)
 	assertWidthOfString(t, wcalc, "Hello, 世界！", 10)
-	assertWidthOfString(t, wcalc, "EΩD", 3)
+	assertWidthOfString(t, wcalc, "ΩND", 3)
 }
 
 func TestTextWidthCalculator(t *testing.T) {
@@ -53,7 +53,7 @@ func TestTextWidthCalculator(t *testing.T) {
 	assertWidthOfString(t, wcalc, "あいう", 6)
 	assertWidthOfString(t, wcalc, "αβγ", 6)
 	assertWidthOfString(t, wcalc, "Hello, 世界！", 13)
-	assertWidthOfString(t, wcalc, "EΩD", 4)
+	assertWidthOfString(t, wcalc, "ΩND", 4)
 }
 
 func TestSimpleWidthCalculatorEaaHalf(t *testing.T) {
@@ -73,5 +73,5 @@ func TestSimpleWidthCalculatorEaaHalf(t *testing.T) {
 	assertWidthOfString(t, wcalc, "あいう", 6)
 	assertWidthOfString(t, wcalc, "αβγ", 3)
 	assertWidthOfString(t, wcalc, "Hello, 世界！", 13)
-	assertWidthOfString(t, wcalc, "EΩD", 3)
+	assertWidthOfString(t, wcalc, "ΩND", 3)
 }

@@ -1,26 +1,27 @@
 package fwv
 
 import (
-	"github.com/fatih/color"
 	"io"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
-var defaultColorOrder = []string{"green", "yellow", "blue", "magenta", "cyan"}
+var defaultColorOrder = []string{"red", "green", "blue", "yellow", "magenta", "cyan"}
 
 var colorStringToFgMap = map[string]color.Attribute{
-	"BLACK":   color.FgBlack,
-	"RED":     color.FgRed,
-	"GREEN":   color.FgGreen,
-	"YELLOW":  color.FgYellow,
-	"BLUE":    color.FgBlue,
-	"MAGENTA": color.FgMagenta,
-	"CYAN":    color.FgCyan,
-	"WHITE":   color.FgWhite,
+	"black":   color.FgBlack,
+	"red":     color.FgRed,
+	"green":   color.FgGreen,
+	"yellow":  color.FgYellow,
+	"blue":    color.FgBlue,
+	"magenta": color.FgMagenta,
+	"cyan":    color.FgCyan,
+	"white":   color.FgWhite,
 }
 
 func colorStringToFunc(colorString string) func(...interface{}) string {
-	if v, ok := colorStringToFgMap[strings.ToUpper(colorString)]; ok {
+	if v, ok := colorStringToFgMap[strings.ToLower(colorString)]; ok {
 		return color.New(v).SprintFunc()
 	} else {
 		return color.New(color.FgBlack).SprintFunc()
@@ -48,11 +49,11 @@ func NewWriterWithWidthCalculator(w io.Writer, wcalc WidthCalculator) Writer {
 	}
 }
 
-func (writer *Writer) CalcMaxWidthArrayOfColumns(records [][]string) []int {
+func (w *Writer) CalcMaxWidthArrayOfColumns(records [][]string) []int {
 	maxWidthByColumnIndex := make([]int, 0)
 	for _, row := range records {
 		for j, cell := range row {
-			w := writer.WidthCalculator.CalcWidthOfString(cell)
+			w := w.WidthCalculator.CalcWidthOfString(cell)
 			for j >= len(maxWidthByColumnIndex) {
 				maxWidthByColumnIndex = append(maxWidthByColumnIndex, w)
 			}
@@ -64,28 +65,28 @@ func (writer *Writer) CalcMaxWidthArrayOfColumns(records [][]string) []int {
 	return maxWidthByColumnIndex
 }
 
-func (writer *Writer) ForEach(records [][]string, handler func(line string) error) error {
+func (w *Writer) ForEach(records [][]string, handler func(line string) error) error {
 	oldNoColor := color.NoColor
 	defer func() { color.NoColor = oldNoColor }()
-	color.NoColor = !writer.Colored
+	color.NoColor = !w.Colored
 
-	maxWidthByColumnIndex := writer.CalcMaxWidthArrayOfColumns(records)
+	maxWidthByColumnIndex := w.CalcMaxWidthArrayOfColumns(records)
 	for _, record := range records {
 		line := ""
 		first := true
 		for j, cell := range record {
-			w := maxWidthByColumnIndex[j]
-			padLen := w - writer.WidthCalculator.CalcWidthOfString(cell)
+			width := maxWidthByColumnIndex[j]
+			padLen := width - w.WidthCalculator.CalcWidthOfString(cell)
 			pad := strings.Repeat(" ", padLen)
 			if !first {
-				if writer.Delimiter != "" {
-					line += writer.Delimiter
+				if w.Delimiter != "" {
+					line += w.Delimiter
 				} else {
 					line += " "
 				}
 			}
-			if writer.Colored {
-				colorString := writer.colorOrder[j%len(writer.colorOrder)]
+			if w.Colored {
+				colorString := w.colorOrder[j%len(w.colorOrder)]
 				colorFunc := colorStringToFunc(colorString)
 				line += colorFunc(cell) + pad
 			} else {
@@ -101,13 +102,13 @@ func (writer *Writer) ForEach(records [][]string, handler func(line string) erro
 	return nil
 }
 
-func (writer *Writer) WriteAll(records [][]string) error {
+func (w *Writer) WriteAll(records [][]string) error {
 	br := "\n"
-	if writer.UseCRLF {
+	if w.UseCRLF {
 		br = "\r\n"
 	}
-	err := writer.ForEach(records, func(line string) error {
-		_, err := writer.underlyingWriter.Write([]byte(line + br))
+	err := w.ForEach(records, func(line string) error {
+		_, err := w.underlyingWriter.Write([]byte(line + br))
 		return err
 	})
 	return err
