@@ -13,7 +13,7 @@ func TestCSV2FWV01(t *testing.T) {
 	conv := Converter{
 		Reader:                  r,
 		Writer:                  w,
-		Mode:                    "c2f",
+		FromType:                "csv",
 		UseWidth:                false,
 		EastAsianAmbiguousWidth: 1,
 		Whitespaces:             " ",
@@ -25,7 +25,7 @@ func TestCSV2FWV01(t *testing.T) {
 func TestCSV2FWVUseWidth01(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader(csv01))
 	w := bytes.NewBufferString("")
-	conv := NewConverter(w, r, "c2f")
+	conv := NewConverter(w, r, "csv", "fwv")
 	err := conv.Convert()
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestCSV2FWVUseWidth01(t *testing.T) {
 func TestFWV2CSV01(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader(fwv01))
 	w := bytes.NewBufferString("")
-	conv := NewConverter(w, r, "f2c")
+	conv := NewConverter(w, r, "fwv", "csv")
 	conv.UseWidth = false
 	err := conv.Convert()
 	if err != nil {
@@ -48,7 +48,7 @@ func TestFWV2CSV01(t *testing.T) {
 func TestFWV2CSVUseWidth01(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader(fwvUseWidth01))
 	w := bytes.NewBufferString("")
-	conv := NewConverter(w, r, "f2c")
+	conv := NewConverter(w, r, "fwv", "csv")
 	err := conv.Convert()
 	if err != nil {
 		t.Fatal(err)

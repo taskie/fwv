@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/taskie/fwv/cli"
+	"github.com/taskie/fwv/cli/fwv"
 )
 
 func main() {
-	cli.Main()
+	fwv.Main()
 }

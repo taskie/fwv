@@ -2,6 +2,7 @@ package fwv
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -14,7 +15,8 @@ var (
 type Converter struct {
 	Reader                  io.Reader
 	Writer                  io.Writer
-	Mode                    string
+	FromType                string
+	ToType                  string
 	UseWidth                bool
 	EastAsianAmbiguousWidth int
 	Whitespaces             string
@@ -24,13 +26,15 @@ type Converter struct {
 	Delimiter               string
 	Colored                 bool
 	ColumnRanges            []IntRange
+	ShowColumnRanges        bool
 }
 
-func NewConverter(w io.Writer, r io.Reader, mode string) Converter {
-	return Converter{
+func NewConverter(w io.Writer, r io.Reader, fromType string, toType string) *Converter {
+	return &Converter{
 		Reader:                  r,
 		Writer:                  w,
-		Mode:                    mode,
+		FromType:                fromType,
+		ToType:                  toType,
 		UseWidth:                true,
 		EastAsianAmbiguousWidth: 2,
 		Whitespaces:             " ",
@@ -82,46 +86,34 @@ func (c *Converter) csvWriter() *csv.Writer {
 	return csvw
 }
 
-func (c *Converter) ConvertFWVToCSV() error {
-	reader := c.fwvReader()
-	records, err := reader.ReadAll()
-	if err != nil {
-		return err
-	}
-	csvw := c.csvWriter()
-	err = csvw.WriteAll(records)
-	return err
-}
-
-func (c *Converter) ConvertCSVToFWV() error {
-	csvr := c.csvReader()
-	records, err := csvr.ReadAll()
-	if err != nil {
-		return err
-	}
-	writer := c.fwvWriter()
-	err = writer.WriteAll(records)
-	return err
-}
-
-func (c *Converter) ConvertFWVToFWV() error {
-	reader := c.fwvReader()
-	records, err := reader.ReadAll()
-	if err != nil {
-		return err
-	}
-	writer := c.fwvWriter()
-	err = writer.WriteAll(records)
-	return err
-}
-
 func (c *Converter) Convert() error {
-	switch strings.ToLower(c.Mode) {
-	case "f2c":
-		return c.ConvertFWVToCSV()
-	case "f2f", "shrink":
-		return c.ConvertFWVToFWV()
+	var records [][]string
+	var readInfo *ReadInfo
+	var err error
+	switch strings.ToLower(c.FromType) {
+	case "csv":
+		records, err = c.csvReader().ReadAll()
 	default:
-		return c.ConvertCSVToFWV()
+		records, readInfo, err = c.fwvReader().ReadAllInfo()
 	}
+	if err != nil {
+		return err
+	}
+	if c.ShowColumnRanges {
+		if readInfo == nil {
+			return fmt.Errorf("can't show column ranges")
+		}
+		ranges := make([]string, 0)
+		for _, cr := range readInfo.ColumnRanges {
+			ranges = append(ranges, fmt.Sprintf("%d:%d", cr.Begin, cr.End))
+		}
+		records = [][]string{ranges}
+	}
+	switch strings.ToLower(c.ToType) {
+	case "csv":
+		err = c.csvWriter().WriteAll(records)
+	default:
+		err = c.fwvWriter().WriteAll(records)
+	}
+	return err
 }
