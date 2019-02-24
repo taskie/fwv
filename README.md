@@ -47,8 +47,8 @@ fwv -t csv <foo.txt >foo.csv
 #### Output (foo.csv)
 
 ```csv
-a,bb,あいう,ccc
-漢字,d,eee,f
+a,bb,あいう,ccc,dd,e
+漢字,f,gg,h,",",i
 ```
 
 ### Convert CSV to Fixed Width Values
