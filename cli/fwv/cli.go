@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/iancoleman/strcase"
+
 	"github.com/mattn/go-isatty"
 
 	"github.com/taskie/fwv"
@@ -32,22 +34,25 @@ const CommandName = "fwv"
 
 func init() {
 	Command.PersistentFlags().StringVarP(&configFile, "config", "c", "", `config file (default "`+CommandName+`.yml")`)
-	Command.Flags().StringP("fromType", "f", "", "convert from [fwv|csv]")
-	Command.Flags().StringP("toType", "t", "", "convert to [fwv|csv]")
-	Command.Flags().BoolP("noWidth", "W", false, "NOT use char width")
-	Command.Flags().BoolP("eaaHalfWidth", "E", false, "treat East Asian Ambiguous as half width")
-	Command.Flags().BoolP("showColumnRanges", "r", false, "show column ranges")
-	Command.Flags().BoolP("noTrim", "T", false, "NOT trim whitespaces")
+	Command.Flags().StringP("from-type", "f", "fwv", "convert from [fwv|csv]")
+	Command.Flags().StringP("to-type", "t", "fwv", "convert to [fwv|csv]")
+	Command.Flags().BoolP("no-width", "W", false, "NOT use char width")
+	Command.Flags().BoolP("eaa-half-width", "E", false, "treat East Asian Ambiguous as half width")
+	Command.Flags().BoolP("show-column-ranges", "r", false, "show column ranges")
+	Command.Flags().BoolP("no-trim", "T", false, "NOT trim whitespaces")
 	Command.Flags().BoolP("color", "C", false, "colorize output")
-	Command.Flags().BoolP("noColor", "M", false, "NOT colorize output (monochrome)")
+	Command.Flags().BoolP("no-color", "M", false, "NOT colorize output (monochrome)")
 	Command.Flags().StringP("whitespaces", "s", " ", "characters treated as whitespace")
 	Command.Flags().StringP("delimiter", "d", " ", "delimiter used for FWV output")
 	Command.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	Command.Flags().BoolVarP(&debug, "debug", "g", false, "debug output")
+	Command.Flags().BoolVar(&debug, "debug", false, "debug output")
 	Command.Flags().BoolVarP(&version, "version", "V", false, "show Version")
 
-	for _, s := range []string{"fromType", "toType", "noWidth", "eaaHalfWidth", "showColumnRanges", "noTrim", "color", "noColor", "whitespaces", "delimiter"} {
-		viper.BindPFlag(s, Command.Flags().Lookup(s))
+	for _, s := range []string{"from-type", "to-type", "no-width", "eaa-half-width", "show-column-ranges", "no-trim", "color", "no-color", "whitespaces", "delimiter"} {
+		envKey := strcase.ToSnake(s)
+		structKey := strcase.ToCamel(s)
+		viper.BindPFlag(envKey, Command.Flags().Lookup(s))
+		viper.RegisterAlias(structKey, envKey)
 	}
 
 	cobra.OnInitialize(initConfig)
@@ -74,6 +79,7 @@ func initConfig() {
 		}
 		viper.AddConfigPath(".")
 	}
+	viper.BindEnv("no_color")
 	viper.SetEnvPrefix(CommandName)
 	viper.AutomaticEnv()
 
