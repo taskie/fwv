@@ -10,6 +10,7 @@ type Reader struct {
 	UseWidthCalculator bool
 	WidthCalculator    WidthCalculator
 	ColumnRanges       []IntRange
+	NoTrim             bool
 	whitespaces        string
 	whitespaceWidthMap map[rune]int
 	underlyingReader   io.Reader
@@ -113,7 +114,7 @@ func (r *Reader) makeColumnRanges(spec ColumnSpec) []IntRange {
 }
 
 func (r *Reader) extractCell(
-	line string, columnRange IntRange, runeOffset int, widthOffset int,
+	line string, begin int, end int, runeOffset int, widthOffset int,
 ) (cell string, read int, width int) {
 	runes := []rune(line)
 	targetRunes := runes[runeOffset:]
@@ -122,11 +123,11 @@ func (r *Reader) extractCell(
 	width = 0
 	for _, c := range targetRunes {
 		nextWidthOffset := widthOffset + width
-		if nextWidthOffset < columnRange.Begin {
+		if nextWidthOffset < begin {
 			// do nothing
-		} else if columnRange.Begin <= nextWidthOffset && nextWidthOffset < columnRange.End {
+		} else if begin <= nextWidthOffset && nextWidthOffset < end {
 			cell += string(c)
-		} else if columnRange.End <= nextWidthOffset {
+		} else if end <= nextWidthOffset {
 			break
 		} else {
 			panic("unreachable code")
@@ -142,10 +143,16 @@ func (r *Reader) loadLinesWithWidthCalculator(lines []string, columnRanges []Int
 		record := make([]string, 0)
 		runeOffset := 0
 		widthOffset := 0
-		for _, columnRange := range columnRanges {
-			cell, read, width := r.extractCell(line, columnRange, runeOffset, widthOffset)
-			trimmedCell := strings.Trim(cell, r.whitespaces)
-			record = append(record, trimmedCell)
+		for i, columnRange := range columnRanges {
+			end := columnRange.End
+			if r.NoTrim && i+1 < len(columnRanges) {
+				end = columnRanges[i+1].Begin
+			}
+			cell, read, width := r.extractCell(line, columnRange.Begin, end, runeOffset, widthOffset)
+			if !r.NoTrim {
+				cell = strings.Trim(cell, r.whitespaces)
+			}
+			record = append(record, cell)
 			runeOffset += read
 			widthOffset += width
 		}
@@ -162,16 +169,23 @@ func (r *Reader) loadLinesWithoutWidthCalculator(lines []string, columnRanges []
 		runes := []rune(line)
 		l := len(runes)
 		record := make([]string, 0)
-		for _, columnRange := range columnRanges {
+		for i, columnRange := range columnRanges {
 			begin := columnRange.Begin
 			if begin > l {
 				begin = l
 			}
 			end := columnRange.End
+			if r.NoTrim && i+1 < len(columnRanges) {
+				end = columnRanges[i+1].Begin
+			}
 			if end > l {
 				end = l
 			}
-			record = append(record, strings.Trim(string(runes[begin:end]), r.whitespaces))
+			cell := string(runes[begin:end])
+			if !r.NoTrim {
+				cell = strings.Trim(cell, r.whitespaces)
+			}
+			record = append(record, cell)
 		}
 		err := handler(record)
 		if err != nil {

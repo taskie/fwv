@@ -19,7 +19,7 @@ import (
 
 type Config struct {
 	Input, Output, FromType, ToType, Whitespaces, Delimiter, LogLevel string
-	NoWidth, EaaHalfWidth, ShowColumnRanges, Color, NoColor           bool
+	NoWidth, EaaHalfWidth, ShowColumnRanges, NoTrim, Color, NoColor   bool
 }
 
 var configFile string
@@ -37,15 +37,16 @@ func init() {
 	Command.Flags().BoolP("noWidth", "W", false, "NOT use char width")
 	Command.Flags().BoolP("eaaHalfWidth", "E", false, "treat East Asian Ambiguous as half width")
 	Command.Flags().BoolP("showColumnRanges", "r", false, "show column ranges")
+	Command.Flags().BoolP("noTrim", "T", false, "NOT trim whitespaces")
 	Command.Flags().BoolP("color", "C", false, "colorize output")
 	Command.Flags().BoolP("noColor", "M", false, "NOT colorize output (monochrome)")
 	Command.Flags().StringP("whitespaces", "s", " ", "characters treated as whitespace")
-	Command.Flags().StringP("delimiter", "d", "", "delimiter used for FWV output")
+	Command.Flags().StringP("delimiter", "d", " ", "delimiter used for FWV output")
 	Command.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	Command.Flags().BoolVarP(&debug, "debug", "g", false, "debug output")
 	Command.Flags().BoolVarP(&version, "version", "V", false, "show Version")
 
-	for _, s := range []string{"fromType", "toType", "noWidth", "eaaHalfWidth", "showColumnRanges", "color", "noColor", "whitespaces", "delimiter"} {
+	for _, s := range []string{"fromType", "toType", "noWidth", "eaaHalfWidth", "showColumnRanges", "noTrim", "color", "noColor", "whitespaces", "delimiter"} {
 		viper.BindPFlag(s, Command.Flags().Lookup(s))
 	}
 
@@ -178,6 +179,7 @@ func run(cmd *cobra.Command, args []string) error {
 	conv.Delimiter = config.Delimiter
 	conv.Colored = colored
 	conv.ShowColumnRanges = config.ShowColumnRanges
+	conv.NoTrim = config.NoTrim
 
 	err = conv.Convert()
 	if err != nil {

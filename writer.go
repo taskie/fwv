@@ -44,6 +44,7 @@ func NewWriter(w io.Writer) Writer {
 func NewWriterWithWidthCalculator(w io.Writer, wcalc WidthCalculator) Writer {
 	return Writer{
 		WidthCalculator:  wcalc,
+		Delimiter:        " ",
 		colorOrder:       defaultColorOrder,
 		underlyingWriter: w,
 	}
@@ -79,11 +80,7 @@ func (w *Writer) ForEach(records [][]string, handler func(line string) error) er
 			padLen := width - w.WidthCalculator.CalcWidthOfString(cell)
 			pad := strings.Repeat(" ", padLen)
 			if !first {
-				if w.Delimiter != "" {
-					line += w.Delimiter
-				} else {
-					line += " "
-				}
+				line += w.Delimiter
 			}
 			if w.Colored {
 				colorString := w.colorOrder[j%len(w.colorOrder)]

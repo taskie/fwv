@@ -20,6 +20,7 @@ type Converter struct {
 	UseWidth                bool
 	EastAsianAmbiguousWidth int
 	Whitespaces             string
+	NoTrim                  bool
 	UseCRLF                 bool
 	Comma                   rune
 	CSVComment              rune
@@ -40,6 +41,7 @@ func NewConverter(w io.Writer, r io.Reader, fromType string, toType string) *Con
 		Whitespaces:             " ",
 		UseCRLF:                 false,
 		Comma:                   ',',
+		Delimiter:               " ",
 	}
 }
 
@@ -54,6 +56,7 @@ func (c *Converter) fwvReader() *Reader {
 	}
 	reader.SetWhitespaces(c.Whitespaces)
 	reader.ColumnRanges = c.ColumnRanges
+	reader.NoTrim = c.NoTrim
 	return &reader
 }
 

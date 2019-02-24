@@ -2,53 +2,55 @@
 
 manipulate “Fixed Width Values”
 
-## install
+![fwv](images/example.gif)
+
+## Install
 
 ```sh
-go get github.com/taskie/fwv/cmd/fwv
+go get -u github.com/taskie/fwv/cmd/fwv
 ```
 
-## usage
+## Usage
 
-### convert CSV to Fixed Width Values
+### Convert CSV to Fixed Width Values
 
 ```sh
-fwv -o foo.txt foo.csv
+fwv foo.csv foo.txt
 ```
 
 or
 
 ```sh
-fwv <foo.csv >foo.txt
+fwv -f csv <foo.csv >foo.txt
 ```
 
 #### foo.csv (input)
 
-```
+```csv
 a,bb,あいう,ccc
 漢字,d,eee,f
 ```
 
 #### foo.txt (output)
 
-```
+```txt
 a    bb あいう ccc
 漢字 d  eee    f
 ```
 
-### convert Fixed Width Values to CSV
+### Convert Fixed Width Values to CSV
 
 ```sh
-fwv -r -o foo.csv foo.txt
+fwv foo.txt foo.csv
 ```
 
 or
 
 ```sh
-fwv -r <foo.txt >foo.csv
+fwv -t csv <foo.txt >foo.csv
 ```
 
-### treat "Eastern Asian Ambiguous Width" as halfwidth
+### Treat "Eastern Asian Ambiguous Width" as halfwidth
 
 ```sh
 fwv -E
@@ -60,7 +62,7 @@ or
 env FWV_EAA_HALF_WIDTH=1 fwv
 ```
 
-### ignore character width
+### Ignore character width
 
 Only the number of characters (runes) are considered.
 
@@ -68,7 +70,7 @@ Only the number of characters (runes) are considered.
 fwv -W
 ```
 
-### specify a delimiter
+### Specify a delimiter
 
 ```sh
 fwv -d '│'
@@ -76,15 +78,15 @@ fwv -d '│'
 
 #### foo.txt (output)
 
-```
+```txt
 a   │bb│あいう│ccc
 漢字│d │eee   │f
 ```
 
-## dependency
+## Dependencies
 
 ![dependency](images/dependency.png)
 
-## license
+## License
 
 Apache License 2.0
