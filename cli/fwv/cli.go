@@ -15,7 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/taskie/jc"
 	"github.com/taskie/osplus"
 )
 
@@ -34,8 +33,8 @@ const CommandName = "fwv"
 
 func init() {
 	Command.PersistentFlags().StringVarP(&configFile, "config", "c", "", `config file (default "`+CommandName+`.yml")`)
-	Command.Flags().StringP("from-type", "f", "fwv", "convert from [fwv|csv]")
-	Command.Flags().StringP("to-type", "t", "fwv", "convert to [fwv|csv]")
+	Command.Flags().StringP("from-type", "f", "", "convert from [fwv|csv]")
+	Command.Flags().StringP("to-type", "t", "", "convert to [fwv|csv]")
 	Command.Flags().BoolP("no-width", "W", false, "NOT use char width")
 	Command.Flags().BoolP("eaa-half-width", "E", false, "treat East Asian Ambiguous as half width")
 	Command.Flags().BoolP("show-column-ranges", "r", false, "show column ranges")
@@ -110,7 +109,7 @@ var Command = &cobra.Command{
 
 func run(cmd *cobra.Command, args []string) error {
 	if version {
-		fmt.Println(jc.Version)
+		fmt.Println(fwv.Version)
 		return nil
 	}
 	if config.LogLevel != "" {
