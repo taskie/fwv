@@ -12,30 +12,24 @@ go get -u github.com/taskie/fwv/cmd/fwv
 
 ## Usage
 
-### Convert CSV to Fixed Width Values
+### Pretty-print Fixed Width Values
 
 ```sh
-fwv foo.csv foo.txt
+fwv foo.txt
 ```
 
-or
-
-```sh
-fwv -f csv <foo.csv >foo.txt
-```
-
-#### foo.csv (input)
-
-```csv
-a,bb,あいう,ccc
-漢字,d,eee,f
-```
-
-#### foo.txt (output)
+#### Input (foo.txt)
 
 ```txt
-a    bb あいう ccc
-漢字 d  eee    f
+a        bb     あいう  ccc   dd     e
+漢字    f     gg         h    ,      i
+```
+
+#### Output
+
+```txt
+a    bb あいう ccc dd e
+漢字 f  gg     h   ,  i
 ```
 
 ### Convert Fixed Width Values to CSV
@@ -50,37 +44,65 @@ or
 fwv -t csv <foo.txt >foo.csv
 ```
 
-### Treat "Eastern Asian Ambiguous Width" as halfwidth
+#### Output (foo.csv)
+
+```csv
+a,bb,あいう,ccc
+漢字,d,eee,f
+```
+
+### Convert CSV to Fixed Width Values
 
 ```sh
-fwv -E
+fwv foo.csv foo.txt
 ```
 
 or
 
 ```sh
-env FWV_EAA_HALF_WIDTH=1 fwv
+fwv -f csv <foo.csv >foo.txt
+```
+
+### Treat "Eastern Asian Ambiguous Width" as halfwidth
+
+```sh
+fwv -E foo.txt
+```
+
+or
+
+```sh
+env FWV_EAA_HALF_WIDTH=1 fwv foo.txt
 ```
 
 ### Ignore character width
 
-Only the number of characters (runes) are considered.
+Only the number of characters (runes) is used for calculating the width.
 
 ```sh
-fwv -W
+fwv -W foo.txt
 ```
 
 ### Specify a delimiter
 
 ```sh
-fwv -d '│'
+fwv -d '│' foo.txt
 ```
 
-#### foo.txt (output)
+```txt
+a   │bb│あいう│ccc│dd│e
+漢字│f │gg    │h  │, │i
+```
+
+### Do not trim whitespaces
+
+```sh
+fwv -d '│' -T foo.txt
+```
 
 ```txt
-a   │bb│あいう│ccc
-漢字│d │eee   │f
+a       │ bb   │  あいう  │ccc   │dd     │e
+漢字    │f     │gg        │ h    │,      │i
 ```
 
 ## Dependencies
