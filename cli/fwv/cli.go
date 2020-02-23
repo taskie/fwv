@@ -1,130 +1,76 @@
 package fwv
 
 import (
-	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/iancoleman/strcase"
-
 	"github.com/mattn/go-isatty"
-
-	"github.com/taskie/fwv"
-
-	"github.com/k0kubun/pp"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/taskie/osplus"
+	"github.com/taskie/fwv"
+	"github.com/taskie/ose"
+	"github.com/taskie/ose/coli"
+	"go.uber.org/zap"
 )
-
-type Config struct {
-	Input, Output, FromType, ToType, Whitespaces, Delimiter, LogLevel string
-	NoWidth, EaaHalfWidth, ShowColumnRanges, NoTrim, Color, NoColor   bool
-}
 
 var configFile string
 var config Config
-var (
-	verbose, debug, version bool
-)
 
 const CommandName = "fwv"
 
+var Command *cobra.Command
+
 func init() {
-	Command.PersistentFlags().StringVarP(&configFile, "config", "c", "", `config file (default "`+CommandName+`.yml")`)
-	Command.Flags().StringP("from-type", "f", "", "convert from [fwv|csv]")
-	Command.Flags().StringP("to-type", "t", "", "convert to [fwv|csv]")
-	Command.Flags().BoolP("no-width", "W", false, "NOT use char width")
-	Command.Flags().BoolP("eaa-half-width", "E", false, "treat East Asian Ambiguous as half width")
-	Command.Flags().BoolP("show-column-ranges", "r", false, "show column ranges")
-	Command.Flags().BoolP("no-trim", "T", false, "NOT trim whitespaces")
-	Command.Flags().BoolP("color", "C", false, "colorize output")
-	Command.Flags().BoolP("no-color", "M", false, "NOT colorize output (monochrome)")
-	Command.Flags().StringP("whitespaces", "s", " ", "characters treated as whitespace")
-	Command.Flags().StringP("delimiter", "d", " ", "delimiter used for FWV output")
-	Command.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	Command.Flags().BoolVar(&debug, "debug", false, "debug output")
-	Command.Flags().BoolVarP(&version, "version", "V", false, "show Version")
-
-	for _, s := range []string{"from-type", "to-type", "no-width", "eaa-half-width", "show-column-ranges", "no-trim", "color", "no-color", "whitespaces", "delimiter"} {
-		envKey := strcase.ToSnake(s)
-		structKey := strcase.ToCamel(s)
-		viper.BindPFlag(envKey, Command.Flags().Lookup(s))
-		viper.RegisterAlias(structKey, envKey)
-	}
-
-	cobra.OnInitialize(initConfig)
-}
-
-func initConfig() {
-	if debug {
-		log.SetLevel(log.DebugLevel)
-	} else if verbose {
-		log.SetLevel(log.InfoLevel)
-	} else {
-		log.SetLevel(log.WarnLevel)
-	}
-
-	if configFile != "" {
-		viper.SetConfigFile(configFile)
-	} else {
-		viper.SetConfigName(CommandName)
-		conf, err := osplus.GetXdgConfigHome()
-		if err != nil {
-			log.Info(err)
-		} else {
-			viper.AddConfigPath(filepath.Join(conf, CommandName))
-		}
-		viper.AddConfigPath(".")
-	}
-	viper.BindEnv("no_color")
-	viper.SetEnvPrefix(CommandName)
-	viper.AutomaticEnv()
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Debug(err)
-	}
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		log.Warn(err)
-	}
+	Command = NewCommand(coli.NewColiInThisWorld())
 }
 
 func Main() {
 	Command.Execute()
 }
 
-var Command = &cobra.Command{
-	Use:  CommandName,
-	Args: cobra.RangeArgs(0, 2),
-	Run: func(cmd *cobra.Command, args []string) {
-		err := run(cmd, args)
-		if err != nil {
-			log.Fatal(err)
-		}
-	},
+func NewCommand(cl *coli.Coli) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  CommandName,
+		Args: cobra.RangeArgs(0, 2),
+		Run:  cl.WrapRun(run),
+	}
+	cl.Prepare(cmd)
+
+	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", `config file (default "`+CommandName+`.yml")`)
+	cmd.Flags().StringP("from-type", "f", "", "convert from [fwv|csv]")
+	cmd.Flags().StringP("to-type", "t", "", "convert to [fwv|csv]")
+	cmd.Flags().BoolP("no-width", "W", false, "NOT use char width")
+	cmd.Flags().BoolP("eaa-half-width", "E", false, "treat East Asian Ambiguous as half width")
+	cmd.Flags().BoolP("show-column-ranges", "r", false, "show column ranges")
+	cmd.Flags().BoolP("no-trim", "T", false, "NOT trim whitespaces")
+	cmd.Flags().BoolP("color", "C", false, "colorize output")
+	cmd.Flags().BoolP("no-color", "M", false, "NOT colorize output (monochrome)")
+	cmd.Flags().StringP("whitespaces", "s", " ", "characters treated as whitespace")
+	cmd.Flags().StringP("delimiter", "d", " ", "delimiter used for FWV output")
+
+	cl.BindFlags(cmd.Flags(), []string{
+		"from-type", "to-type", "no-width", "eaa-half-width", "show-column-ranges", "no-trim",
+		"color", "no-color", "whitespaces", "delimiter",
+	})
+	cl.Viper().BindEnv("no_color")
+	return cmd
 }
 
-func run(cmd *cobra.Command, args []string) error {
-	if version {
-		fmt.Println(fwv.Version)
-		return nil
+type Config struct {
+	Input, Output, FromType, ToType, Whitespaces, Delimiter         string
+	NoWidth, EaaHalfWidth, ShowColumnRanges, NoTrim, Color, NoColor bool
+}
+
+func run(cl *coli.Coli, cmd *cobra.Command, args []string) {
+	v := cl.Viper()
+	log := zap.L()
+	if v.GetBool("version") {
+		cmd.Println(fwv.Version)
+		return
 	}
-	if config.LogLevel != "" {
-		lv, err := log.ParseLevel(config.LogLevel)
-		if err != nil {
-			log.Warn(err)
-		} else {
-			log.SetLevel(lv)
-		}
-	}
-	if debug {
-		if viper.ConfigFileUsed() != "" {
-			log.Debugf("Using config file: %s", viper.ConfigFileUsed())
-		}
-		log.Debug(pp.Sprint(config))
+	err := v.Unmarshal(&config)
+	if err != nil {
+		log.Fatal("can't unmarshal config", zap.Error(err))
 	}
 
 	input := ""
@@ -138,7 +84,7 @@ func run(cmd *cobra.Command, args []string) error {
 		input = args[0]
 		output = args[1]
 	default:
-		return fmt.Errorf("invalid arguments: %v", args[2:])
+		log.Sugar().Fatalf("invalid arguments: %v", args[2:])
 	}
 
 	fromType := config.FromType
@@ -155,18 +101,6 @@ func run(cmd *cobra.Command, args []string) error {
 		eastAsianAmbiguousWidth = 1
 	}
 
-	opener := osplus.NewOpener()
-	r, err := opener.Open(input)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	w, commit, err := opener.CreateTempFileWithDestination(output, "", CommandName+"-")
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-
 	colored := false
 	if output == "" || output == "-" {
 		colored = isatty.IsTerminal(os.Stdout.Fd())
@@ -177,19 +111,29 @@ func run(cmd *cobra.Command, args []string) error {
 		colored = true
 	}
 
-	conv := fwv.NewConverter(w, r, fromType, toType)
-	conv.UseWidth = !config.NoWidth
-	conv.EastAsianAmbiguousWidth = eastAsianAmbiguousWidth
-	conv.Whitespaces = config.Whitespaces
-	conv.Delimiter = config.Delimiter
-	conv.Colored = colored
-	conv.ShowColumnRanges = config.ShowColumnRanges
-	conv.NoTrim = config.NoTrim
-
-	err = conv.Convert()
+	opener := ose.NewOpenerInThisWorld()
+	r, err := opener.Open(input)
 	if err != nil {
-		return err
+		log.Fatal("can't open", zap.Error(err))
 	}
-	commit(true)
-	return nil
+	defer r.Close()
+	_, err = opener.CreateTempFile("", CommandName, output, func(f io.WriteCloser) (bool, error) {
+		conv := fwv.NewConverter(f, r, fromType, toType)
+		conv.UseWidth = !config.NoWidth
+		conv.EastAsianAmbiguousWidth = eastAsianAmbiguousWidth
+		conv.Whitespaces = config.Whitespaces
+		conv.Delimiter = config.Delimiter
+		conv.Colored = colored
+		conv.ShowColumnRanges = config.ShowColumnRanges
+		conv.NoTrim = config.NoTrim
+
+		err = conv.Convert()
+		if err != nil {
+			log.Fatal("can't convert", zap.Error(err))
+		}
+		return true, nil
+	})
+	if err != nil {
+		log.Fatal("can't create file", zap.Error(err))
+	}
 }

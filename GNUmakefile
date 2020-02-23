@@ -27,7 +27,10 @@ dep-init:
 	dep init
 
 dep-ensure:
-	dep ensure
+	cd cmd/fwv && go mod tidy
+
+dep-update:
+	cd cmd/fwv && go get -u
 
 dep-graph: images/dependency.png
 
