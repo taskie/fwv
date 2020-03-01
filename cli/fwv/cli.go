@@ -84,7 +84,7 @@ func run(cl *coli.Coli, cmd *cobra.Command, args []string) {
 		input = args[0]
 		output = args[1]
 	default:
-		log.Sugar().Fatalf("invalid arguments: %v", args[2:])
+		log.Fatal("invalid arguments", zap.Strings("arguments", args[2:]))
 	}
 
 	fromType := config.FromType

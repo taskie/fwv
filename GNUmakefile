@@ -1,49 +1,51 @@
-.PHONY: build install test fmt coverage dep-init dep-ensure dep-graph pre-commit install-pre-commit
-
-CMD_DIR := cmd/fwv
-
+.PHONY: build
 build:
 	go build -v -ldflags "-s -w"
-	$(MAKE) -C $(CMD_DIR) build
+	cd cmd/fwv && go build -v -ldflags "-s -w"
 
+
+.PHONY: install
 install:
 	go install -v -ldflags "-s -w"
-	$(MAKE) -C $(CMD_DIR) install
+	cd cmd/fwv && go install -v -ldflags "-s -w"
 
+
+.PHONY: generate
+	go generate
+
+.PHONY: test
 test:
 	go test ./...
 
-fmt:
-	find . -name '*.go' | grep -v ./vendor/ | xargs gofmt -w
-
+.PHONY: coverage
 coverage:
 	mkdir -p test/coverage
 	go test -coverprofile=test/coverage/cover.out ./...
 	go tool cover -html=test/coverage/cover.out -o test/coverage/cover.html
 
-dep-init:
-	-rm -rf vendor/
-	-rm -f Gopkg.toml Gopkg.lock
-	dep init
+.PHONY: fmt
+fmt:
+	find . -name '*.go' | grep -v ./vendor/ | xargs gofmt -w
 
-dep-ensure:
-	cd cmd/fwv && go mod tidy
-
-dep-update:
+.PHONY: upgrade
+upgrade:
+	go get -u
 	cd cmd/fwv && go get -u
 
-dep-graph: images/dependency.png
+	$(MAKE) mod-tidy
 
-images/dependency.png: Gopkg.lock
-	mkdir -p images
-	dep status -dot | grep -v '^The status of ' | dot -Tpng -o images/dependency.png
+.PHONY: mod-tidy
+mod-tidy:
+	go mod tidy
 
+.PHONY: pre-commit
 pre-commit:
-	$(MAKE) dep-ensure
+	$(MAKE) mod-tidy
 	$(MAKE) fmt
 	$(MAKE) build
-	$(MAKE) coverage
+	$(MAKE) test
 
+.PHONY: install-pre-commit
 install-pre-commit:
 	echo 'make pre-commit' >.git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
